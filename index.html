@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web Photobooth</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #311183;
+      color: white;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    video, canvas {
+      border: 5px solid #fff;
+      border-radius: 16px;
+      max-width: 90vw;
+      object-fit: cover;
+    }
+    .controls {
+      margin-top: 1rem;
+      display: flex;
+      gap: 1rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      background: #311183;
+      color: white;
+      border: 2px solid white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #downloadLink {
+      display: none;
+    }
+    #qrCodeContainer {
+      margin-top: 1rem;
+      display: none;
+      background: white;
+      padding: 0.5rem;
+      border-radius: 8px;
+    }
+    #counter, #countdown {
+      margin-top: 1rem;
+      font-size: 1.25rem;
+    }
+    #countdown {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #ffcc00;
+    }
+    #flash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 9999;
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      canvas {
+        display: block !important;
+        visibility: visible;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+      }
+    }
+    #frameChoice {
+    text-align: center;
+  }
+</style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+</head>
+<body>
+  <h1>Web Photobooth</h1>
+
+  <div id="frameChoice">
+    <p>Pilih template frame:</p>
+    <button onclick="selectDefaultFrame()">Gunakan Frame Default</button>
+    <input type="file" id="frameFile" accept="image/*" onchange="uploadCustomFrame(event)" style="display:none;" />
+    <button onclick="document.getElementById('frameFile').click()">Unggah Frame Kustom</button>
+  </div>
+
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <div id="counter">Foto tersimpan: 0 / 4</div>
+  <div id="countdown"></div>
+
+  <div class="controls">
+  <button id="capture">Ambil Foto</button>
+  <button id="print" style="display:none;">Cetak</button>
+  <a id="downloadLink" download="photostrip.png">Unduh</a>
+  <button id="reset" style="display:none;">Reset Sesi</button>
+</div>
+<button id="backToStart" style="display:none;">Kembali ke Awal</button>
+
+  <div id="qrCodeContainer">
+    <p style="color:black; text-align:center; margin: 0 0 0.5rem 0">Scan untuk mengunduh:</p>
+    <canvas id="qrCanvas"></canvas>
+  </div>
+
+  <div id="flash"></div>
+  <audio id="shutter-sound" src="https://www.soundjay.com/mechanical/camera-shutter-click-01.mp3" preload="auto"></audio>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const captureBtn = document.getElementById("capture");
+    const printBtn = document.getElementById("print");
+    const downloadLink = document.getElementById("downloadLink");
+    const counter = document.getElementById("counter");
+    const countdown = document.getElementById("countdown");
+    const flash = document.getElementById("flash");
+    const shutterSound = document.getElementById("shutter-sound");
+    const qrCanvas = document.getElementById("qrCanvas");
+    const qrContainer = document.getElementById("qrCodeContainer");
+
+    const photoStrips = [];
+    let customFrameImg = null;
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => video.srcObject = stream)
+      .catch(err => alert("Gagal mengakses kamera: " + err));
+
+    function updateCounter() {
+      counter.textContent = `Foto tersimpan: ${photoStrips.length} / 4`;
+    }
+
+    function startCountdown(seconds, callback) {
+      countdown.textContent = seconds;
+      const interval = setInterval(() => {
+        seconds--;
+        countdown.textContent = seconds > 0 ? seconds : "📸";
+        if (seconds <= 0) {
+          clearInterval(interval);
+          setTimeout(() => {
+            countdown.textContent = "";
+            callback();
+          }, 500);
+        }
+      }, 1000);
+    }
+
+    function triggerFlash() {
+      flash.style.opacity = 1;
+      setTimeout(() => flash.style.opacity = 0, 150);
+    }
+
+    function selectDefaultFrame() {
+      customFrameImg = null;
+      document.getElementById("frameChoice").style.display = "none";
+    }
+
+    function uploadCustomFrame(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        customFrameImg = new Image();
+        customFrameImg.onload = () => {
+          document.getElementById("frameChoice").style.display = "none";
+        };
+        customFrameImg.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    captureBtn.addEventListener("click", () => {
+      startCountdown(3, () => {
+        const tempCanvas = document.createElement("canvas");
+        const tempCtx = tempCanvas.getContext("2d");
+        const photoWidth = 540;
+        const photoHeight = Math.round(photoWidth * 3 / 4);
+        tempCanvas.width = photoWidth;
+        tempCanvas.height = photoHeight;
+
+        const cropHeight = video.videoHeight;
+        const cropWidth = cropHeight * 4 / 3;
+        const sx = (video.videoWidth - cropWidth) / 2;
+        const sy = 0;
+        tempCtx.drawImage(video, sx, sy, cropWidth, cropHeight, 0, 0, photoWidth, photoHeight);
+
+        photoStrips.push(tempCanvas);
+        updateCounter();
+        shutterSound.currentTime = 0;
+        shutterSound.play();
+        triggerFlash();
+
+        if (photoStrips.length === 4) {
+  document.getElementById("backToStart").style.display = "inline-block";
+          if (customFrameImg) {
+  canvas.width = customFrameImg.width;
+  canvas.height = customFrameImg.height;
+
+  const marginX = 30;
+  const marginY = 30;
+  const photoWidth = 540;
+  const photoHeight = 405;
+
+  for (let i = 0; i < 4; i++) {
+    const x = marginX;
+    const y = marginY + i * (photoHeight + marginY);
+    ctx.drawImage(photoStrips[i], x, y, photoWidth, photoHeight);
+  }
+
+  ctx.drawImage(customFrameImg, 0, 0, canvas.width, canvas.height);
+          } else {
+            canvas.width = 600;
+            canvas.height = 1920;
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, 600, 1920);
+            const marginX = 30;
+            const marginY = 30;
+
+            for (let i = 0; i < 4; i++) {
+              const x = marginX;
+              const y = marginY + i * (photoHeight + marginY);
+              ctx.drawImage(photoStrips[i], x, y, 540, photoHeight);
+            }
+          }
+
+          video.style.display = "none";
+          canvas.style.display = "block";
+          printBtn.style.display = "inline-block";
+          downloadLink.href = canvas.toDataURL();
+          downloadLink.style.display = "inline-block";
+
+          const imgbbApiKey = "YOUR_IMGBB_API_KEY";
+          const formData = new FormData();
+          formData.append("image", canvas.toDataURL().split(",")[1]);
+
+          fetch("https://api.imgbb.com/1/upload?expiration=600&key=" + imgbbApiKey, {
+            method: "POST",
+            body: formData
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data.success) {
+                const imageUrl = data.data.url;
+                QRCode.toCanvas(qrCanvas, imageUrl, { width: 180 }, function (error) {
+                  if (error) console.error(error);
+                  qrContainer.style.display = "block";
+                });
+              } else {
+                console.error("Gagal upload ke imgbb", data);
+              }
+            })
+            .catch(err => console.error("Upload error:", err));
+        }
+      });
+    });
+
+    printBtn.addEventListener("click", () => {
+      const win = window.open();
+      win.document.write('<img src="' + canvas.toDataURL() + '" onload="window.print();window.close();" />');
+      win.document.close();
+    });
+  document.getElementById("reset").addEventListener("click", () => {
+    video.style.display = "block";
+    canvas.style.display = "none";
+    printBtn.style.display = "none";
+    downloadLink.style.display = "none";
+    qrContainer.style.display = "none";
+    photoStrips.length = 0;
+    updateCounter();
+  });
+
+  document.getElementById("backToStart").addEventListener("click", () => {
+    document.getElementById("frameChoice").style.display = "block";
+    video.style.display = "block";
+    canvas.style.display = "none";
+    printBtn.style.display = "none";
+    downloadLink.style.display = "none";
+    qrContainer.style.display = "none";
+    document.getElementById("backToStart").style.display = "none";
+    photoStrips.length = 0;
+    updateCounter();
+  });
+</script>
