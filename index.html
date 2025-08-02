@@ -1,356 +1,314 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Web Photobooth</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #311183;
-      color: white;
-      margin: 0;
-      padding: 1rem;
-      height: 100vh;
-      display: flex;
-      flex-direction: row;
-      gap: 2rem;
-      overflow: hidden;
-    }
-    #settings {
-      width: 300px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    #preview {
-      flex: 1;
-      overflow: auto;
-      display: flex;
-      justify-content: center;
-      align-items: start;
-      padding-top: 20px;
-      position: relative;
-    }
-    #frameDisplay {
-      position: relative;
-      width: 1080px;
-      height: 3456px;
-    }
-    .frameOverlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 1080px;
-      height: 3456px;
-      z-index: 10;
-      pointer-events: none;
-    }
-    .slot {
-      width: 972px;
-      height: 729px;
-      position: absolute;
-      left: 54px;
-      overflow: hidden;
-    }
-    .slot video, .slot img.photo {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 5;
-    }
-    select, button {
-      padding: 0.5rem;
-      font-size: 1rem;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-    }
-    button {
-      background: #fff;
-      color: #311183;
-    }
-    h1 {
-      text-align: center;
-    }
-    #qrCodeContainer {
-      margin-top: 54px;
-      background: white;
-      padding: 10px;
-      border-radius: 8px;
-      display: none;
-    }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
-</head>
-<body>
-  <div id="settings">
-    <h1>Web Photobooth</h1>
-
-    <label>Pilih Jumlah Foto:</label>
-    <div>
-      <button onclick="setFrameSize(1)">1</button>
-      <button onclick="setFrameSize(2)">2</button>
-      <button onclick="setFrameSize(4)">4</button>
-    </div>
-
-    <select id="cameraSelect"></select>
-
-    <label>Pilih Frame :</label>
-    <div>
-      <button onclick="selectDefaultFrame()">Default</button>
-      <input type="file" id="frameFile" accept="image/*" onchange="uploadCustomFrame(event)" style="display:none;" />
-      <button onclick="document.getElementById('frameFile').click()">Upload Frame</button>
-    </div>
-
-    <div id="counter">Foto Tersimpan : 0 / 4</div>
-    <button id="capture">Take a Photo 😉</button>
-    <div style="margin-top: 54px; display: flex; flex-direction: column; gap: 10px;">
-      <button id="downloadBtn">Unduh Hasil</button>
-      <button id="printBtn">Cetak</button>
-      <button id="resetBtn">Reset</button>
-    </div>
-    <div id="qrCodeContainer">
-      <p style="color: black; margin: 0 0 8px 0">Scan untuk mengunduh:</p>
-      <canvas id="qrCanvas"></canvas>
-    </div>
-  </div>
-
-  <div id="preview">
-    <div id="frameDisplay">
-      <div id="defaultBackground" style="position:absolute; top:0; left:0; width:1080px; height:3456px; background:white; z-index:1;"></div>
-      <img id="frameOverlay" class="frameOverlay" style="display: none;" />
-    </div>
-  </div>
-
-  <script>
-    const cameraSelect = document.getElementById("cameraSelect");
-    const frameDisplay = document.getElementById("frameDisplay");
-    const frameOverlay = document.getElementById("frameOverlay");
-    const counter = document.getElementById("counter");
-    const qrCanvas = document.getElementById("qrCanvas");
-    const qrCodeContainer = document.getElementById("qrCodeContainer");
-
-    let currentStream = null;
-    let photoTaken = 0;
-    let totalPhotos = 4;
-    let capturedImages = [];
-    let video = document.createElement("video");
-    video.autoplay = true;
-    video.playsInline = true;
-    let useDefaultFrame = true;
-
-    function updateCounter() {
-      counter.textContent = `Foto Tersimpan : ${photoTaken} / ${totalPhotos}`;
-    }
-
-    function createSlot(index) {
-      const slot = document.createElement("div");
-      slot.className = "slot";
-      slot.style.top = `${54 + index * (729 + 54)}px`;
-      return slot;
-    }
-
-    function initSlots() {
-      frameDisplay.querySelectorAll(".slot").forEach(el => el.remove());
-      for (let i = 0; i < totalPhotos; i++) {
-        const slot = createSlot(i);
-        frameDisplay.appendChild(slot);
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Photobooth</title>
+    <style>
+      /* Tata letak umum */
+      body {
+        font-family: sans-serif;
+        background: #311183;
+        color: white;
+        margin: 0;
+        padding: 1rem;
+        height: 100vh;
+        display: flex;
+        flex-direction: row;
+        gap: 2rem;
+        overflow: hidden;
       }
-      const firstSlot = frameDisplay.querySelector(".slot");
-      if (firstSlot) firstSlot.appendChild(video);
-    }
-
-    function initCamera(deviceId) {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
+      /* Panel pengaturan */
+      #settings {
+        width: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
       }
-      const constraints = {
-        video: deviceId ? { deviceId: { exact: deviceId } } : true,
-      };
-      navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
-        currentStream = stream;
-        video.srcObject = stream;
-        const currentSlot = frameDisplay.querySelector(".slot");
-        if (currentSlot && !currentSlot.contains(video)) {
-          currentSlot.appendChild(video);
+      /* Area preview */
+      #preview {
+        flex: 1;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        align-items: start;
+        padding-top: 20px;
+        position: relative;
+      }
+      /* Bingkai utama */
+      #frameDisplay {
+        position: relative;
+        width: 1080px;
+        height: 3456px;
+      }
+      /* Lapisan overlay custom frame */
+      .frameOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1080px;
+        height: 3456px;
+        z-index: 10; /* Pastikan di atas background */
+        pointer-events: none;
+      }
+      /* Slot foto */
+      .slot {
+        width: 972px;
+        height: 729px;
+        position: absolute;
+        left: 54px;
+        overflow: hidden;
+      }
+      /* Video atau gambar dalam slot */
+      .slot video,
+      .slot img.photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 5;
+      }
+      /* Tombol dan input */
+      select,
+      button {
+        padding: 0.5rem;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      button { background: #fff; color: #311183; }
+      button:hover { background: #f0f0f0; box-shadow: 0 2px 6px rgba(0,0,0,0.2); transform: scale(1.03); }
+      /* QR code container */
+      #qrCodeContainer { margin-top: 54px; background: white; padding: 10px; border-radius: 8px; display: none; }
+      /* Tombol jumlah foto */
+      .photo-count-buttons { display: flex; gap: 24px; }
+      .photo-count-buttons button { flex: 1; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div id="settings">
+      <h1>Web Photobooth</h1>
+      <label>Pilih Jumlah Foto:</label>
+      <div class="photo-count-buttons">
+        <button onclick="setFrameSize(1)">1</button>
+        <button onclick="setFrameSize(2)">2</button>
+        <button onclick="setFrameSize(4)">4</button>
+      </div>
+      <select id="cameraSelect"></select>
+      <label>Pilih Frame :</label>
+      <div>
+        <button onclick="selectDefaultFrame()">Default</button>
+        <button onclick="document.getElementById('frameFile').click()">Upload Frame</button>
+        <input type="file" id="frameFile" accept="image/*" onchange="uploadCustomFrame(event)" style="display:none;" />
+      </div>
+      <div id="counter">Foto Tersimpan : 0 / 4</div>
+      <button id="capture">Take a Photo 😉</button>
+      <div style="margin-top: 54px; display: flex; flex-direction: column; gap: 10px;">
+        <button id="downloadBtn">Unduh Hasil</button>
+        <button id="printBtn">Cetak</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <div id="qrCodeContainer">
+        <p style="color: black; margin: 0 0 8px 0">Scan untuk mengunduh:</p>
+        <canvas id="qrCanvas"></canvas>
+      </div>
+    </div>
+    <div id="preview">
+      <div id="frameDisplay">
+        <div id="defaultBackground" style="position:absolute; top:0; left:0; width:1080px; height:3456px; background:white; z-index:1;"></div>
+        <img id="frameOverlay" class="frameOverlay" style="display: none;" />
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+    <script>
+      // Referensi elemen
+      const cameraSelect = document.getElementById("cameraSelect");
+      const frameDisplay = document.getElementById("frameDisplay");
+      const frameOverlay = document.getElementById("frameOverlay");
+      const defaultBg = document.getElementById("defaultBackground");
+      const counter = document.getElementById("counter");
+      const qrCanvas = document.getElementById("qrCanvas");
+      const qrCodeContainer = document.getElementById("qrCodeContainer");
+
+      // State aplikasi
+      let currentStream = null;
+      let photoTaken = 0;
+      let totalPhotos = 4;
+      let capturedImages = [];
+      const video = document.createElement("video");
+      video.autoplay = true;
+      video.playsInline = true;
+      let useDefaultFrame = true;      
+      let lastCustomFrame = "";   
+
+      // Update counter
+      function updateCounter() {
+        counter.textContent = `Foto Tersimpan : ${photoTaken} / ${totalPhotos}`;
+      }
+
+      // Buat slot
+      function createSlot(index) {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+        slot.style.top = `${54 + index * (729 + 54)}px`;
+        return slot;
+      }
+
+      // Inisialisasi slot sesuai totalPhotos
+      function initSlots() {
+        frameDisplay.querySelectorAll(".slot").forEach(el => el.remove());
+        for (let i = 0; i < totalPhotos; i++) {
+          frameDisplay.appendChild(createSlot(i));
         }
-      });
-    }
-
-    navigator.mediaDevices.enumerateDevices().then((devices) => {
-      const videoDevices = devices.filter((d) => d.kind === "videoinput");
-      videoDevices.forEach((device) => {
-        const option = document.createElement("option");
-        option.value = device.deviceId;
-        option.text = device.label || "Camera";
-        cameraSelect.appendChild(option);
-      });
-      if (videoDevices.length > 0) initCamera(videoDevices[0].deviceId);
-    });
-
-    cameraSelect.addEventListener("change", () => {
-      initCamera(cameraSelect.value);
-    });
-
-    function setFrameSize(num) {
-      totalPhotos = num;
-      photoTaken = 0;
-      capturedImages = [];
-      frameDisplay.style.height = num === 1 ? "1107px" : num === 2 ? "1890px" : "3456px";
-      updateCounter();
-      initSlots();
-    }
-
-    function selectDefaultFrame() {
-      useDefaultFrame = true;
-      frameOverlay.style.display = "none";
-      document.getElementById("defaultBackground").style.display = "block";
-      initSlots();
-    }
-
-    function uploadCustomFrame(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    useDefaultFrame = false;
-    // Jangan sembunyikan defaultBackground agar tetap jadi background
-    frameOverlay.src = reader.result;
-    frameOverlay.style.display = "block";
-    initSlots();
-  };
-  reader.readAsDataURL(file);
-}
-
-    document.getElementById("capture").addEventListener("click", () => {
-      const slot = frameDisplay.querySelectorAll(".slot")[photoTaken];
-      if (!slot) return;
-
-      const img = document.createElement("img");
-      img.className = "photo";
-
-      const tempCanvas = document.createElement("canvas");
-      const ctx = tempCanvas.getContext("2d");
-      const aspectRatio = 972 / 729;
-      let cropWidth = video.videoWidth;
-      let cropHeight = cropWidth / aspectRatio;
-
-      if (cropHeight > video.videoHeight) {
-        cropHeight = video.videoHeight;
-        cropWidth = cropHeight * aspectRatio;
+        const firstSlot = frameDisplay.querySelector(".slot");
+        if (firstSlot) firstSlot.appendChild(video);
       }
 
-      const sx = (video.videoWidth - cropWidth) / 2;
-      const sy = (video.videoHeight - cropHeight) / 2;
-
-      tempCanvas.width = 972;
-      tempCanvas.height = 729;
-
-      ctx.drawImage(video, sx, sy, cropWidth, cropHeight, 0, 0, 972, 729);
-
-      img.src = tempCanvas.toDataURL("image/jpeg");
-      slot.innerHTML = "";
-      slot.appendChild(img);
-
-      capturedImages.push(tempCanvas);
-      photoTaken++;
-      updateCounter();
-
-      const nextSlot = frameDisplay.querySelectorAll(".slot")[photoTaken];
-      if (nextSlot) {
-        nextSlot.appendChild(video);
+      // Inisialisasi kamera
+      function initCamera(deviceId) {
+        if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+        navigator.mediaDevices.getUserMedia({ video: deviceId ? { deviceId: { exact: deviceId } } : true })
+          .then(stream => {
+            currentStream = stream;
+            video.srcObject = stream;
+            const slot = frameDisplay.querySelector(".slot");
+            if (slot && !slot.contains(video)) slot.appendChild(video);
+          });
       }
-    });
 
-    document.getElementById("resetBtn").addEventListener("click", () => {
-      photoTaken = 0;
-      capturedImages = [];
-      qrCodeContainer.style.display = "none";
-      updateCounter();
-      initSlots();
-      initCamera(cameraSelect.value);
-    });
-
-    document.getElementById("printBtn").addEventListener("click", () => {
-      renderPhotostrip((canvas) => {
-        const win = window.open();
-        win.document.write(`<img src="${canvas.toDataURL()}" onload="window.print();window.close();" />`);
-        win.document.close();
-      });
-    });
-
-    function uploadToImgbb(dataUrl, callback) {
-      const apiKey = "c3f4ab95d6474bbce981d20cb0980cf6";
-      const formData = new FormData();
-      formData.append("image", dataUrl.split(",")[1]);
-
-      fetch("https://api.imgbb.com/1/upload?expiration=600&key=" + apiKey, {
-        method: "POST",
-        body: formData,
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            callback(data.data.url);
-          } else {
-            alert("Upload gagal");
-          }
-        })
-        .catch(err => {
-          console.error("Upload error:", err);
+      // Daftar kamera
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        devices.filter(d => d.kind === "videoinput").forEach(device => {
+          const opt = document.createElement("option");
+          opt.value = device.deviceId;
+          opt.text = device.label || "Camera";
+          cameraSelect.appendChild(opt);
         });
-    }
-
-    function showQRCode(url) {
-      QRCode.toCanvas(qrCanvas, url, { width: 180 }, function (error) {
-        if (error) console.error(error);
-        qrCodeContainer.style.display = "block";
+        if (cameraSelect.options.length) initCamera(cameraSelect.value);
       });
-    }
+      cameraSelect.onchange = () => initCamera(cameraSelect.value);
 
-    function renderPhotostrip(callback) {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1080;
-      canvas.height = frameDisplay.offsetHeight;
-      const ctx = canvas.getContext("2d");
-
-      if (useDefaultFrame) {
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Ganti jumlah foto
+      function setFrameSize(num) {
+        totalPhotos = num;
+        photoTaken = 0;
+        capturedImages = [];
+        const newHeight = num === 1 ? 1107 : num === 2 ? 1890 : 3456;
+        frameDisplay.style.height = `${newHeight}px`;
+        frameOverlay.style.height = `${newHeight}px`;
+        defaultBg.style.height = `${newHeight}px`;
+        updateCounter();
+        initSlots();
+        // Jika custom frame aktif, tampilkan overlay layer di atas default background
+        if (!useDefaultFrame && lastCustomFrame) {
+          frameOverlay.style.display = "block";
+          frameOverlay.src = lastCustomFrame;
+        }
       }
 
-      for (let i = 0; i < capturedImages.length; i++) {
-        ctx.drawImage(capturedImages[i], 0, 0, 972, 729, 54, 54 + i * (729 + 54), 972, 729);
+      // Pilih frame default
+      function selectDefaultFrame() {
+        useDefaultFrame = true;
+        // Sematkan custom frame masih di-memory, hanya disembunyikan
+        frameOverlay.style.display = "none";
+        // defaultBg tetap visible di bawah
+        defaultBg.style.display = "block";
+        initSlots();
       }
 
-      if (!useDefaultFrame && frameOverlay.src) {
-        const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          callback(canvas);
+      // Tampilkan custom frame (layer)
+      function uploadCustomFrame(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          lastCustomFrame = reader.result;
+          useDefaultFrame = false;
+          frameOverlay.src = lastCustomFrame;
+          frameOverlay.style.display = "block";
+          // defaultBg tetap di bawah
+          initSlots();
         };
-        img.src = frameOverlay.src;
-      } else {
-        callback(canvas);
+        reader.readAsDataURL(file);
       }
-    }
 
-    document.getElementById("downloadBtn").addEventListener("click", () => {
-      renderPhotostrip((canvas) => {
-        const link = document.createElement("a");
-        link.download = "photostrip.png";
-        link.href = canvas.toDataURL();
-        link.click();
-        uploadToImgbb(canvas.toDataURL(), showQRCode);
-      });
-    });
 
-    updateCounter();
-    initSlots();
-  </script>
-</body>
+      // Capture foto
+      document.getElementById("capture").onclick = () => {
+        const slots = frameDisplay.querySelectorAll(".slot");
+        const slot = slots[photoTaken];
+        if (!slot) return;
+        const temp = document.createElement("canvas");
+        const ctx = temp.getContext("2d");
+        const aspect = 972/729;
+        let w = video.videoWidth;
+        let h = w/aspect;
+        if (h > video.videoHeight) { h = video.videoHeight; w = h*aspect; }
+        const sx = (video.videoWidth-w)/2;
+        const sy = (video.videoHeight-h)/2;
+        temp.width = 972; temp.height = 729;
+        ctx.drawImage(video, sx, sy, w, h, 0, 0, 972, 729);
+        const img = document.createElement("img"); img.className = "photo";
+        img.src = temp.toDataURL("image/jpeg");
+        slot.innerHTML = "";
+        slot.appendChild(img);
+        capturedImages.push(temp);
+        photoTaken++;
+        updateCounter();
+        if (slots[photoTaken]) slots[photoTaken].appendChild(video);
+      };
+
+      // Reset
+      document.getElementById("resetBtn").onclick = () => {
+        photoTaken=0; capturedImages=[]; qrCodeContainer.style.display="none";
+        updateCounter(); initSlots(); initCamera(cameraSelect.value);
+      };
+
+      // Print
+      document.getElementById("printBtn").onclick = () => {
+        renderPhotostrip(canvas => {
+          const w = window.open();
+          w.document.write(`<img src="${canvas.toDataURL()}" onload="window.print();window.close();"/>`);
+          w.document.close();
+        });
+      };
+
+      // Upload dan QR
+      function uploadToImgbb(dataUrl, cb) {
+        const key="c3f4ab95d6474bbce981d20cb0980cf6";
+        const form=new FormData(); form.append("image",dataUrl.split(",")[1]);
+        fetch(`https://api.imgbb.com/1/upload?expiration=600&key=${key}`,{method:"POST",body:form})
+          .then(r=>r.json()).then(d=>d.success?cb(d.data.url):alert("Upload gagal"));
+      }
+      function showQRCode(url){QRCode.toCanvas(qrCanvas,url,{width:180},e=>{if(e)console.error(e);qrCodeContainer.style.display="block";});}
+
+      // Render photostrip
+      function renderPhotostrip(cb) {
+        const c=document.createElement("canvas");
+        c.width=1080; c.height=frameDisplay.offsetHeight;
+        const ctx=c.getContext("2d");
+        if(useDefaultFrame){ctx.fillStyle="white";ctx.fillRect(0,0,c.width,c.height);}        
+        capturedImages.forEach((img,i)=>ctx.drawImage(img,54,54+i*(729+54),972,729));
+        if(!useDefaultFrame&&frameOverlay.src){
+          const o=new Image();o.onload=()=>{ctx.drawImage(o,0,0,c.width,c.height);cb(c);};o.src=frameOverlay.src;
+        } else cb(c);
+      }
+      
+      // Download
+      document.getElementById("downloadBtn").onclick = () => {
+        renderPhotostrip(canvas => {
+          const a=document.createElement("a");a.download="photostrip.png";a.href=canvas.toDataURL();a.click();uploadToImgbb(canvas.toDataURL(),showQRCode);
+        });
+      };
+
+      // Inisialisasi awal
+      updateCounter();
+      initSlots();
+      initCamera();
+    </script>
+  </body>
 </html>
