@@ -91,7 +91,11 @@
 <body>
   <h1>Web Photobooth</h1>
 
-  <div id="frameChoice">
+  <div style="margin-bottom: 1rem;">
+  <label for="cameraSelect">Pilih Kamera:</label>
+  <select id="cameraSelect"></select>
+</div>
+<div id="frameChoice" style="margin-bottom: 30px; display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 10px;">
     <p>Pilih template frame:</p>
     <button onclick="selectDefaultFrame()">Gunakan Frame Default</button>
     <input type="file" id="frameFile" accept="image/*" onchange="uploadCustomFrame(event)" style="display:none;" />
@@ -122,6 +126,8 @@
 
   <script>
     const video = document.getElementById("video");
+const cameraSelect = document.getElementById("cameraSelect");
+let currentStream = null;
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
     const captureBtn = document.getElementById("capture");
@@ -137,9 +143,38 @@
     const photoStrips = [];
     let customFrameImg = null;
 
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => video.srcObject = stream)
-      .catch(err => alert("Gagal mengakses kamera: " + err));
+    function startCamera(deviceId) {
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+  }
+  const constraints = {
+    video: deviceId ? { deviceId: { exact: deviceId } } : true
+  };
+  navigator.mediaDevices.getUserMedia(constraints)
+    .then(stream => {
+      currentStream = stream;
+      video.srcObject = stream;
+    })
+    .catch(err => alert("Gagal mengakses kamera: " + err));
+}
+
+navigator.mediaDevices.enumerateDevices()
+  .then(devices => {
+    const videoDevices = devices.filter(device => device.kind === "videoinput");
+    videoDevices.forEach((device, index) => {
+      const option = document.createElement("option");
+      option.value = device.deviceId;
+      option.text = device.label || `Kamera ${index + 1}`;
+      cameraSelect.appendChild(option);
+    });
+    if (videoDevices.length > 0) {
+      startCamera(videoDevices[0].deviceId);
+    }
+  });
+
+cameraSelect.addEventListener("change", () => {
+  startCamera(cameraSelect.value);
+});
 
     function updateCounter() {
       counter.textContent = `Foto tersimpan: ${photoStrips.length} / 4`;
