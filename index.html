@@ -5,98 +5,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cheki Yuu</title>
     <style>
+      :root {
+        --bg-color: #311183;
+        --text-color: white;
+        --button-bg: white;
+        --button-text: #311183;
+        --preview-border: #ffd700; /* Kuning emas untuk border preview */
+      }
+
       body {
         font-family: sans-serif;
-        background: #311183;
-        color: white;
+        background: var(--bg-color);
+        color: var(--text-color);
         margin: 0;
         padding: 1rem;
         height: 100vh;
         display: flex;
         flex-direction: row;
-        gap: 2rem;
+        gap: 1.5rem;
         overflow: hidden;
+        box-sizing: border-box;
       }
 
-      #settings {
-        width: 300px;
+      /* --- 1. Bagian Kontrol (Kiri) --- */
+      #controls {
+        flex-basis: 300px;
+        flex-shrink: 0;
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        gap: 15px;
         overflow-y: auto;
-        padding-right: 10px;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
       }
 
-      #preview,
-      #videoResultContainer {
-        flex: 1;
-        overflow: auto;
-        display: flex;
-        justify-content: center;
-        align-items: start;
-        padding-top: 20px;
-        position: relative;
-      }
-
-      #frameDisplay {
-        position: relative;
-        width: 1080px;
-        transition: height 0.3s ease-in-out;
-      }
-
-      #defaultBackground {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 1080px;
-        background: white;
-        z-index: 1;
-        transition: height 0.3s ease-in-out;
-      }
-
-      .frameOverlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 1080px;
-        height: 100%;
-        z-index: 10;
-        pointer-events: none;
-      }
-
-      .slot {
-        width: 972px;
-        height: 729px;
-        position: absolute;
-        left: 54px;
-        overflow: hidden;
-        background-color: #e0e0e0;
-      }
-
-      .slot video,
-      .slot img.photo {
+      #logo {
         width: 100%;
-        height: 100%;
-        object-fit: cover;
-        position: absolute;
-        top: 0;
-        left: 0;
-        z-index: 5;
+        height: auto;
+        border-radius: 8px;
+        min-height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        color: #ccc;
+        text-align: center;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+
+      #controls label {
+        font-weight: bold;
+        margin-bottom: -5px;
+      }
+
+      #controls .button-row {
+        display: flex;
+        gap: 10px;
+      }
+
+      #controls .button-row button {
+        flex: 1;
       }
 
       select,
       button {
-        padding: 0.5rem;
+        padding: 0.75rem;
         font-size: 1rem;
         border-radius: 8px;
         border: none;
         cursor: pointer;
-        transition: background-color 0.2s;
+        transition: background-color 0.2s, transform 0.1s;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       button {
-        background: #fff;
-        color: #311183;
+        background: var(--button-bg);
+        color: var(--button-text);
         font-weight: bold;
       }
 
@@ -104,25 +91,96 @@
         background-color: #f0f0f0;
       }
 
+      button:active {
+        transform: scale(0.98);
+      }
+
       button:disabled {
         background: #ccc;
+        color: #777;
         cursor: not-allowed;
       }
 
-      h1 {
-        text-align: center;
+      /* HAPUS: Tombol hapus terakhir sudah tidak ada */
+      /*
+      #deleteLastBtn {
+        background-color: #ff4d4d;
+        color: white;
+      }
+      #deleteLastBtn:hover {
+        background-color: #e60000;
+      }
+      #deleteLastBtn:disabled {
+        background: #ccc;
+        color: #777;
+      }
+      */
+
+      .button-group {
+        margin-top: 15px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        border-top: 1px solid #555;
+        padding-top: 15px;
       }
 
       #qrCodeContainer {
-        margin-top: 20px;
+        margin-top: 10px;
         background: white;
         padding: 10px;
         border-radius: 8px;
         display: none;
+        text-align: center;
+      }
+      #qrCanvas {
+        max-width: 100%;
+        height: auto;
+      }
+
+      /* --- 2. Pratinjau Kamera Utama (Tengah) --- */
+      #mainPreviewContainer {
+        flex: 2; /* Ambil ruang paling banyak */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        position: relative;
+        min-width: 400px;
+      }
+
+      #mainVideoSlot {
+        width: 100%;
+        max-width: 1440px; /* Ukuran referensi */
+        aspect-ratio: 4 / 3;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      #mainVideoSlot video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      #mainVideoSlot .placeholder-text {
+        color: white;
+        font-size: 2rem;
+        font-weight: bold;
+        text-align: center;
+        padding: 2rem;
       }
 
       #countdownOverlay {
         position: absolute;
+        top: 50%;
+        left: 50%;
         transform: translate(-50%, -50%);
         font-size: 15rem;
         font-weight: bold;
@@ -133,17 +191,103 @@
         pointer-events: none;
       }
 
-      .button-group {
-        margin-top: 20px;
+      /* --- 3. Pratinjau Hasil (Kanan) --- */
+      #resultsPreviewContainer {
+        flex-basis: 250px; /* Lebar tetap untuk thumbnail */
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        overflow-y: auto;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.1);
+        border: 4px solid var(--preview-border);
+        border-radius: 12px;
+      }
+
+      #resultsPreviewContainer h2 {
+        text-align: center;
+        margin: 0;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--preview-border);
+        cursor: pointer; /* TAMBAHAN: Untuk menandakan bisa diklik */
+        user-select: none; /* TAMBAHAN */
+      }
+      /* TAMBAHAN: Efek hover untuk judul preview */
+      #resultsPreviewContainer h2:hover {
+        opacity: 0.8;
+      }
+
+      #resultsPreviewList {
         display: flex;
         flex-direction: column;
         gap: 10px;
       }
 
+      .result-thumbnail {
+        width: 100%;
+        aspect-ratio: 4 / 3; /* Rasio yang sama dengan slot utama */
+        background: #555;
+        border-radius: 8px;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ccc;
+        font-size: 0.9rem;
+        border: 2px dashed #888;
+        position: relative; /* TAMBAHAN: Untuk positioning tombol 'X' */
+      }
+
+      .result-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      /* TAMBAHAN: Style untuk tombol 'X' di slot */
+      .delete-slot-btn {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        background: rgba(255, 0, 0, 0.8);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 14px;
+        line-height: 24px;
+        text-align: center;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s, transform 0.2s;
+        z-index: 10;
+      }
+      .delete-slot-btn:hover {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+
+      /* --- 4. Tampilan Hasil Video (Tersembunyi) --- */
       #videoResultContainer {
+        /* ... (style lama tetap sama) ... */
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(49, 17, 131, 0.95);
+        display: none; /* Awalnya tersembunyi */
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         gap: 1.5rem;
+        padding: 2rem;
+        box-sizing: border-box;
+        z-index: 200;
       }
 
       #videoPlayer {
@@ -173,31 +317,87 @@
       #downloadLinks a:hover {
         transform: scale(1.05);
       }
+
+      #backToPhotoBtn {
+        margin-top: 1rem;
+        width: auto;
+        padding: 10px 20px;
+      }
+
+      /* --- TAMBAHAN: Style untuk Modal Preview Frame --- */
+      #framePreviewModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: none; /* Awalnya tersembunyi */
+        align-items: center;
+        justify-content: center;
+        z-index: 300;
+        padding: 1rem;
+        box-sizing: border-box;
+      }
+      #framePreviewContent {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+      }
+      #framePreviewCanvas {
+        max-width: 90vw;
+        max-height: 80vh;
+        width: auto;
+        height: auto;
+        border: 2px solid white;
+        border-radius: 8px;
+        background: #333; /* Latar belakang jika frame transparan */
+      }
+      #closeFramePreviewBtn {
+        width: 200px;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
   </head>
   <body>
-    <div id="settings">
-      <h1>Cheki Yuu Photobooth</h1>
+    <div id="controls">
+      <img
+        id="logo"
+        src="https://i.ibb.co.com/GvFMQfZk/lgo-chek.png"
+        alt="Cheki Yuu Logo"
+      />
       <label>Pilih Jumlah Foto:</label>
-      <div>
+      <div class="button-row">
         <button onclick="setFrameSize(1)">1</button>
         <button onclick="setFrameSize(2)">2</button>
-        <button onclick="setFrameSize(4)">4</button>
+        <button onclick="setFrameSize(4)" id="btnSize4">4</button>
       </div>
+      <label for="cameraSelect">Pilih Kamera:</label>
       <select id="cameraSelect"></select>
       <label>Pilih Frame:</label>
-      <div>
+      <div class="button-row">
         <button onclick="selectDefaultFrame()">Default</button>
-        <input type="file" id="frameFile" accept="image/*" onchange="uploadCustomFrame(event)" style="display:none;" />
-        <button onclick="document.getElementById('frameFile').click()">Upload Frame</button>
+        <input
+          type="file"
+          id="frameFile"
+          accept="image/*"
+          onchange="uploadCustomFrame(event)"
+          style="display: none"
+        />
+        <button onclick="document.getElementById('frameFile').click()">
+          Upload Frame
+        </button>
       </div>
       <div id="counter">Foto Tersimpan: 0 / 4</div>
       <button id="capture">Take a Photo 😉</button>
+
       <div class="button-group">
         <button id="downloadBtn">Unduh Hasil Foto</button>
         <button id="printBtn">Cetak</button>
-        <button id="showVideosBtn" style="display: none;">Lihat Klip Video 🎬</button>
+        <button id="showVideosBtn" style="display: none">
+          Lihat Klip Video 🎬
+        </button>
         <button id="resetBtn">Reset / Mulai Lagi</button>
       </div>
       <div id="qrCodeContainer">
@@ -205,142 +405,184 @@
         <canvas id="qrCanvas"></canvas>
       </div>
     </div>
-    <div id="preview">
+
+    <div id="mainPreviewContainer">
+      <div id="mainVideoSlot"></div>
       <div id="countdownOverlay">3</div>
-      <div id="frameDisplay">
-        <div id="defaultBackground"></div>
-        <img id="frameOverlay" class="frameOverlay" style="display: none;" />
-      </div>
     </div>
-    <div id="videoResultContainer" style="display: none;">
+
+    <div id="resultsPreviewContainer">
+      <h2>Preview</h2>
+      <div id="resultsPreviewList"></div>
+    </div>
+
+    <div id="videoResultContainer">
       <h2>Hasil Video Anda</h2>
       <video id="videoPlayer" controls autoplay muted playsinline></video>
       <div id="downloadLinks"></div>
-      <p style="font-size: 0.9rem; opacity: 0.8;">Video akan diputar otomatis satu per satu.</p>
-      <button id="backToPhotoBtn" style="margin-top: 1rem;">Kembali ke Hasil Foto 🖼️</button>
+      <p style="font-size: 0.9rem; opacity: 0.8">
+        Video akan diputar otomatis satu per satu.
+      </p>
+      <button id="backToPhotoBtn" style="margin-top: 1rem">
+        Kembali 🖼️
+      </button>
     </div>
+
+    <div id="framePreviewModal">
+      <div id="framePreviewContent">
+        <canvas id="framePreviewCanvas"></canvas>
+        <button id="closeFramePreviewBtn">Tutup</button>
+      </div>
+    </div>
+
     <script>
+      // --- Konfigurasi Awal & Selektor DOM ---
       const CONFIG = {
         slotWidth: 972,
         slotHeight: 729,
         margin: 54,
-        imgbbApiKey: "c3f4ab95d6474bbce981d20cb0980cf6"
+        imgbbApiKey: "c3f4ab95d6474bbce981d20cb0980cf6",
       };
+
       const cameraSelect = document.getElementById("cameraSelect");
-      const frameDisplay = document.getElementById("frameDisplay");
-      const frameOverlay = document.getElementById("frameOverlay");
-      const defaultBackground = document.getElementById("defaultBackground");
       const counter = document.getElementById("counter");
       const qrCanvas = document.getElementById("qrCanvas");
       const qrCodeContainer = document.getElementById("qrCodeContainer");
       const captureButton = document.getElementById("capture");
-      const countdownOverlay = document.getElementById("countdownOverlay");
-      const previewContainer = document.getElementById("preview");
-      const videoResultContainer = document.getElementById("videoResultContainer");
-      const videoPlayer = document.getElementById("videoPlayer");
-      const downloadLinksContainer = document.getElementById("downloadLinks");
+      // const deleteLastBtn = document.getElementById("deleteLastBtn"); // HAPUS
+      const downloadBtn = document.getElementById("downloadBtn");
+      const printBtn = document.getElementById("printBtn");
+      const resetBtn = document.getElementById("resetBtn");
       const showVideosBtn = document.getElementById("showVideosBtn");
       const backToPhotoBtn = document.getElementById("backToPhotoBtn");
+
+      const mainVideoSlot = document.getElementById("mainVideoSlot");
+      const countdownOverlay = document.getElementById("countdownOverlay");
+      const resultsPreviewList = document.getElementById("resultsPreviewList");
+
+      const videoResultContainer =
+        document.getElementById("videoResultContainer");
+      const videoPlayer = document.getElementById("videoPlayer");
+      const downloadLinksContainer = document.getElementById("downloadLinks");
+
       let currentStream = null,
         photoTaken = 0,
         totalPhotos = 4;
+
+      // UBAH: Array ini akan diinisialisasi ulang di resetApp
       let capturedImages = [],
         capturedVideos = [];
+
       let video = document.createElement("video");
       video.autoplay = true;
       video.playsInline = true;
+      video.muted = true; // Mute video preview
+
       let useDefaultFrame = true;
-      let mediaRecorder, recordedChunks = [];
+      let frameOverlay = document.createElement("img");
+      frameOverlay.className = "frameOverlay";
+
+      let mediaRecorder,
+        recordedChunks = [];
       let currentVideoIndex = 0;
+      let finalCanvasHeight = 0;
+
+      // --- Inisialisasi & Setup Kamera ---
 
       function updateCounter() {
         counter.textContent = `Foto Tersimpan: ${photoTaken} / ${totalPhotos}`;
       }
 
-      function createSlot(index) {
-        const slot = document.createElement("div");
-        slot.className = "slot";
-        slot.style.top = `${CONFIG.margin + index * (CONFIG.slotHeight + CONFIG.margin)}px`;
-        return slot;
+      function initResultsPreview(num) {
+        resultsPreviewList.innerHTML = "";
+        for (let i = 0; i < num; i++) {
+          const thumbSlot = document.createElement("div");
+          thumbSlot.className = "result-thumbnail";
+          thumbSlot.id = `thumb-slot-${i}`;
+          thumbSlot.textContent = `Slot ${i + 1}`;
+          resultsPreviewList.appendChild(thumbSlot);
+        }
       }
 
-      function initSlots() {
-        frameDisplay.querySelectorAll(".slot").forEach(el => el.remove());
-        for (let i = 0; i < totalPhotos; i++) {
-          const slot = createSlot(i);
-          frameDisplay.appendChild(slot);
-        }
-        const firstSlot = frameDisplay.querySelector(".slot");
-        if (firstSlot && !firstSlot.contains(video)) firstSlot.appendChild(video);
-      }
       async function initCamera(deviceId) {
         if (currentStream) {
-          currentStream.getTracks().forEach(track => track.stop());
+          currentStream.getTracks().forEach((track) => track.stop());
         }
+
+        const placeholder = mainVideoSlot.querySelector(".placeholder-text");
+        if (placeholder) placeholder.remove();
+
+        video.style.display = "block";
+
         const constraints = {
-          video: deviceId ? {
-            deviceId: {
-              exact: deviceId
-            }
-          } : {
-            facingMode: 'user'
-          }
+          video: deviceId
+            ? { deviceId: { exact: deviceId } }
+            : { facingMode: "user" },
         };
+
         try {
           const stream = await navigator.mediaDevices.getUserMedia(constraints);
           currentStream = stream;
           video.srcObject = stream;
-          const currentSlot = frameDisplay.querySelectorAll(".slot")[photoTaken] || frameDisplay.querySelector(".slot");
-          if (currentSlot && !currentSlot.contains(video)) {
-            currentSlot.innerHTML = '';
-            currentSlot.appendChild(video);
+          if (!mainVideoSlot.contains(video)) {
+            mainVideoSlot.appendChild(video);
           }
         } catch (err) {
           console.error("Gagal mengakses kamera:", err);
+          mainVideoSlot.innerHTML = `<div class="placeholder-text">Gagal mengakses kamera 😞</div>`;
           alert("Tidak bisa mengakses kamera. Pastikan Anda memberikan izin.");
         }
       }
+
       async function loadCameras() {
         try {
+          await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
           const devices = await navigator.mediaDevices.enumerateDevices();
           const videoDevices = devices.filter((d) => d.kind === "videoinput");
-          cameraSelect.innerHTML = '';
+
+          cameraSelect.innerHTML = "";
           videoDevices.forEach((device) => {
             const option = document.createElement("option");
             option.value = device.deviceId;
             option.text = device.label || `Kamera ${cameraSelect.length + 1}`;
             cameraSelect.appendChild(option);
           });
-          if (videoDevices.length > 0) await initCamera(videoDevices[0].deviceId);
+
+          if (videoDevices.length > 0) {
+            await initCamera(cameraSelect.value || videoDevices[0].deviceId);
+          } else {
+            mainVideoSlot.innerHTML = `<div class="placeholder-text">Tidak ada kamera ditemukan.</div>`;
+          }
         } catch (err) {
           console.error("Tidak bisa mendapatkan daftar perangkat:", err);
+          mainVideoSlot.innerHTML = `<div class="placeholder-text">Izin kamera ditolak.</div>`;
         }
       }
 
       function setFrameSize(num) {
         totalPhotos = num;
-        let newHeight;
         switch (num) {
           case 1:
-            newHeight = 1107;
+            finalCanvasHeight = 1107;
             break;
           case 2:
-            newHeight = 1890;
+            finalCanvasHeight = 1890;
             break;
           case 4:
           default:
-            newHeight = 3456;
+            finalCanvasHeight = 3456;
             break;
         }
-        frameDisplay.style.height = `${newHeight}px`;
-        defaultBackground.style.height = `${newHeight}px`;
         resetApp();
       }
 
+      // --- Logika Frame ---
+
       function selectDefaultFrame() {
         useDefaultFrame = true;
-        frameOverlay.style.display = "none";
-        defaultBackground.style.display = "block";
       }
 
       function uploadCustomFrame(event) {
@@ -350,40 +592,49 @@
         reader.onload = () => {
           useDefaultFrame = false;
           frameOverlay.src = reader.result;
-          frameOverlay.style.display = "block";
-          defaultBackground.style.display = "none";
         };
         reader.readAsDataURL(file);
       }
 
+      // --- Proses Pengambilan Foto ---
+
       function startCaptureProcess() {
-        const slot = frameDisplay.querySelectorAll(".slot")[photoTaken];
-        if (!slot || photoTaken >= totalPhotos || !currentStream) return;
+        // UBAH: Cari slot kosong pertama
+        const nextSlotIndex = capturedImages.indexOf(null);
+
+        // UBAH: Cek jika slot penuh
+        if (nextSlotIndex === -1 || !currentStream) {
+          console.log("Semua slot sudah terisi atau kamera tidak ada.");
+          return;
+        }
+
         captureButton.disabled = true;
+        // deleteLastBtn.disabled = true; // HAPUS
         captureButton.textContent = "Siap-siap...";
+
+        // --- Perekaman Video Dimulai ---
         recordedChunks = [];
         mediaRecorder = new MediaRecorder(currentStream, {
-          mimeType: 'video/webm'
+          mimeType: "video/webm",
         });
         mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) recordedChunks.push(event.data);
         };
         mediaRecorder.onstop = () => {
-          const videoBlob = new Blob(recordedChunks, {
-            type: 'video/webm'
-          });
+          const videoBlob = new Blob(recordedChunks, { type: "video/webm" });
           const videoUrl = URL.createObjectURL(videoBlob);
-          capturedVideos.push(videoUrl);
-          console.log(`Video ke-${capturedVideos.length} berhasil direkam.`);
+          // UBAH: Simpan video ke slot yang benar
+          capturedVideos[nextSlotIndex] = videoUrl;
+          console.log(`Video ke-${nextSlotIndex + 1} berhasil direkam.`);
         };
         mediaRecorder.start();
-        const slotRect = slot.getBoundingClientRect();
-        const previewRect = frameDisplay.getBoundingClientRect();
-        countdownOverlay.style.top = `${slotRect.top - previewRect.top + (slotRect.height / 2)}px`;
-        countdownOverlay.style.left = `50%`;
+        // --- Perekaman Video Selesai ---
+
+        countdownOverlay.style.display = "block";
+
         let count = 3;
         countdownOverlay.textContent = count;
-        countdownOverlay.style.display = "block";
+
         const countdownInterval = setInterval(() => {
           count--;
           if (count > 0) {
@@ -391,9 +642,14 @@
           } else {
             clearInterval(countdownInterval);
             countdownOverlay.style.display = "none";
-            if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-            takeFinalPhoto(slot);
-            if (photoTaken < totalPhotos) {
+
+            if (mediaRecorder.state === "recording") mediaRecorder.stop();
+
+            // UBAH: Kirim index ke takeFinalPhoto
+            takeFinalPhoto(nextSlotIndex);
+
+            // UBAH: Cek lagi apa masih ada slot kosong
+            if (capturedImages.indexOf(null) !== -1) {
               captureButton.disabled = false;
               captureButton.textContent = "Take a Photo 😉";
             }
@@ -401,11 +657,12 @@
         }, 1000);
       }
 
-      function takeFinalPhoto(slot) {
-        const img = document.createElement("img");
-        img.className = "photo";
+      // UBAH: Terima parameter index
+      function takeFinalPhoto(index) {
         const tempCanvas = document.createElement("canvas");
         const ctx = tempCanvas.getContext("2d");
+
+        // Logika cropping resolusi tinggi (dari kode asli)
         const aspectRatio = CONFIG.slotWidth / CONFIG.slotHeight;
         let cropWidth = video.videoWidth,
           cropHeight = cropWidth / aspectRatio;
@@ -415,104 +672,214 @@
         }
         const sx = (video.videoWidth - cropWidth) / 2;
         const sy = (video.videoHeight - cropHeight) / 2;
+
+        // 2. Buat canvas resolusi tinggi
         tempCanvas.width = CONFIG.slotWidth;
         tempCanvas.height = CONFIG.slotHeight;
-        ctx.drawImage(video, sx, sy, cropWidth, cropHeight, 0, 0, CONFIG.slotWidth, CONFIG.slotHeight);
-        img.src = tempCanvas.toDataURL("image/jpeg");
-        slot.innerHTML = "";
-        slot.appendChild(img);
-        capturedImages.push(tempCanvas);
-        photoTaken++;
+        ctx.drawImage(
+          video,
+          sx,
+          sy,
+          cropWidth,
+          cropHeight,
+          0,
+          0,
+          CONFIG.slotWidth,
+          CONFIG.slotHeight
+        );
+
+        // UBAH: Simpan gambar ke slot yang benar
+        capturedImages[index] = tempCanvas; // Simpan canvas high-res
+
+        // 2. Tampilkan di thumbnail preview kanan
+        const dataUrl = tempCanvas.toDataURL("image/jpeg");
+        // UBAH: Targetkan slot yang benar
+        const thumbSlot = document.getElementById(`thumb-slot-${index}`);
+        if (thumbSlot) {
+          thumbSlot.innerHTML = ""; // Hapus teks "Slot X"
+          const img = document.createElement("img");
+          img.src = dataUrl;
+          thumbSlot.appendChild(img);
+
+          // TAMBAHAN: Buat tombol 'X'
+          const deleteButton = document.createElement("button");
+          deleteButton.className = "delete-slot-btn";
+          deleteButton.innerHTML = "&times;"; // 'X' HTML entity
+          deleteButton.onclick = (e) => {
+            e.stopPropagation(); // Hentikan event bubbling jika ada
+            deletePhotoAtIndex(index);
+          };
+          thumbSlot.appendChild(deleteButton);
+        }
+
+        // UBAH: Hitung ulang photoTaken
+        photoTaken = capturedImages.filter((img) => img !== null).length;
         updateCounter();
-        const nextSlot = frameDisplay.querySelectorAll(".slot")[photoTaken];
-        if (nextSlot) {
-          nextSlot.appendChild(video);
-        } else {
-          if (currentStream) currentStream.getTracks().forEach(track => track.stop());
-          video.remove();
+        // deleteLastBtn.disabled = false; // HAPUS
+
+        // Cek jika sudah selesai
+        if (photoTaken >= totalPhotos) {
+          if (currentStream)
+            currentStream.getTracks().forEach((track) => track.stop());
+          video.style.display = "none"; // Sembunyikan video
+          mainVideoSlot.innerHTML = `<div class="placeholder-text">Selesai! ✨</div>`;
           captureButton.textContent = "Selesai!";
           captureButton.disabled = true;
-          showVideosBtn.style.display = 'block';
+          showVideosBtn.style.display = "block";
+          // deleteLastBtn.disabled = false; // HAPUS
         }
       }
 
+      // --- 5. Fungsi Hapus Foto (BARU) ---
+      function deletePhotoAtIndex(index) {
+        if (capturedImages[index] === null) return; // Slot sudah kosong
+
+        const wasFinished = photoTaken === totalPhotos;
+
+        // Kosongkan data di index tersebut
+        capturedImages[index] = null;
+        capturedVideos[index] = null;
+
+        // Hitung ulang
+        photoTaken = capturedImages.filter((img) => img !== null).length;
+
+        // Kosongkan thumbnail
+        const thumbSlot = document.getElementById(`thumb-slot-${index}`);
+        if (thumbSlot) {
+          thumbSlot.innerHTML = "";
+          thumbSlot.textContent = `Slot ${index + 1}`;
+        }
+
+        updateCounter();
+
+        // Aktifkan kembali UI
+        captureButton.disabled = false;
+        captureButton.textContent = "Take a Photo 😉";
+        showVideosBtn.style.display = "none";
+        qrCodeContainer.style.display = "none";
+
+        // Jika sebelumnya selesai, restart kamera
+        if (wasFinished) {
+          mainVideoSlot.innerHTML = ""; // Hapus teks "Selesai!"
+          loadCameras(); // Ini akan menampilkan video lagi
+        }
+      }
+
+      // --- Tampilan Video & Reset ---
+
       function showVideoResult() {
-        previewContainer.style.display = 'none';
-        videoResultContainer.style.display = 'flex';
+        // UBAH: Filter video yang tidak null
+        const videosToPlay = capturedVideos.filter((vid) => vid !== null);
+        if (videosToPlay.length === 0) {
+          alert("Tidak ada klip video yang tersimpan.");
+          return;
+        }
+
+        videoResultContainer.style.display = "flex";
         currentVideoIndex = 0;
-        downloadLinksContainer.innerHTML = '';
-        capturedVideos.forEach((videoUrl, index) => {
-          const link = document.createElement('a');
+        downloadLinksContainer.innerHTML = "";
+
+        videosToPlay.forEach((videoUrl, index) => {
+          const link = document.createElement("a");
           link.href = videoUrl;
           link.download = `photobooth-klip-${index + 1}.webm`;
           link.textContent = `Unduh Klip ${index + 1}`;
           downloadLinksContainer.appendChild(link);
         });
+
         videoPlayer.onended = () => {
           currentVideoIndex++;
-          if (currentVideoIndex < capturedVideos.length) {
-            videoPlayer.src = capturedVideos[currentVideoIndex];
-            videoPlayer.play();
-          } else {
-            currentVideoIndex = 0;
-            videoPlayer.src = capturedVideos[currentVideoIndex];
-            videoPlayer.play();
+          if (currentVideoIndex >= videosToPlay.length) {
+            currentVideoIndex = 0; // Ulangi dari awal
           }
+          videoPlayer.src = videosToPlay[currentVideoIndex];
+          videoPlayer.play();
         };
-        if (capturedVideos.length > 0) {
-          videoPlayer.src = capturedVideos[0];
+
+        if (videosToPlay.length > 0) {
+          videoPlayer.src = videosToPlay[0];
           videoPlayer.play();
         }
       }
 
       function resetApp() {
-        previewContainer.style.display = 'flex';
-        videoResultContainer.style.display = 'none';
-        showVideosBtn.style.display = 'none';
         photoTaken = 0;
-        capturedImages = [];
-        capturedVideos = [];
+        // UBAH: Inisialisasi array dengan slot null
+        capturedImages = new Array(totalPhotos).fill(null);
+        capturedVideos = new Array(totalPhotos).fill(null);
+
         qrCodeContainer.style.display = "none";
+
+        // --- PERBAIKAN TAMBAHAN ---
+        // Kembalikan tombol Unduh ke status semula
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = "Unduh Hasil Foto";
+        // --- AKHIR PERBAIKAN ---
+
         captureButton.disabled = false;
         captureButton.textContent = "Take a Photo 😉";
+        // deleteLastBtn.disabled = true; // HAPUS
+        showVideosBtn.style.display = "none";
+        videoResultContainer.style.display = "none";
+        videoPlayer.pause();
+
+        mainVideoSlot.innerHTML = ""; // Hapus placeholder "Selesai"
+
         updateCounter();
-        initSlots();
-        loadCameras();
+        initResultsPreview(totalPhotos); // Setel ulang slot thumbnail
+        loadCameras(); // Muat ulang kamera ke slot utama
       }
+
+      // --- Render & Unduh (Resolusi Penuh) ---
 
       function renderPhotostrip(callback) {
         const canvas = document.createElement("canvas");
-        canvas.width = 1080;
-        canvas.height = frameDisplay.offsetHeight;
+        canvas.width = 1080; // Lebar tetap dari kode asli
+        canvas.height = finalCanvasHeight; // Tinggi dinamis yang sudah dihitung
         const ctx = canvas.getContext("2d");
+
         if (useDefaultFrame) {
           ctx.fillStyle = "white";
           ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
-        for (let i = 0; i < capturedImages.length; i++) {
-          ctx.drawImage(capturedImages[i], CONFIG.margin, CONFIG.margin + i * (CONFIG.slotHeight + CONFIG.margin));
+
+        // UBAH: Filter gambar yang tidak null
+        const imagesToDraw = capturedImages.filter((img) => img !== null);
+
+        // 2. Gambar dari canvas high-res, bukan dari DOM
+        for (let i = 0; i < imagesToDraw.length; i++) {
+          ctx.drawImage(
+            imagesToDraw[i], // Ini adalah elemen <canvas>
+            CONFIG.margin,
+            CONFIG.margin + i * (CONFIG.slotHeight + CONFIG.margin)
+          );
         }
+
         if (!useDefaultFrame && frameOverlay.src) {
           const img = new Image();
           img.onload = () => {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             callback(canvas);
           };
+          img.onerror = () => {
+            console.error("Gagal memuat frame overlay.");
+            callback(canvas); // Tetap lanjutkan tanpa frame
+          };
           img.src = frameOverlay.src;
         } else {
           callback(canvas);
         }
       }
-      // --- MODIFIKASI DIMULAI ---
+
       async function uploadToImgbb(dataUrl, filename) {
         const formData = new FormData();
         formData.append("image", dataUrl.split(",")[1]);
-        formData.append("name", filename); // Menambahkan nama file ke FormData
+        formData.append("name", filename);
         try {
-          const response = await fetch(`https://api.imgbb.com/1/upload?key=${CONFIG.imgbbApiKey}`, {
-            method: "POST",
-            body: formData
-          });
+          const response = await fetch(
+            `https://api.imgbb.com/1/upload?key=${CONFIG.imgbbApiKey}`,
+            { method: "POST", body: formData }
+          );
           const data = await response.json();
           if (data.success) return data.data.url;
           else throw new Error(data.error.message);
@@ -522,57 +889,129 @@
           return null;
         }
       }
-      // --- MODIFIKASI SELESAI ---
+
       function showQRCode(url) {
-        QRCode.toCanvas(qrCanvas, url, {
-          width: 180
-        }, (error) => {
+        QRCode.toCanvas(qrCanvas, url, { width: 200 }, (error) => {
           if (error) console.error(error);
           qrCodeContainer.style.display = "block";
         });
       }
-      cameraSelect.addEventListener("change", () => initCamera(cameraSelect.value));
+
+      // --- Event Listeners ---
+
+      cameraSelect.addEventListener("change", () =>
+        initCamera(cameraSelect.value)
+      );
       captureButton.addEventListener("click", startCaptureProcess);
-      document.getElementById("resetBtn").addEventListener("click", resetApp);
-      document.getElementById("printBtn").addEventListener("click", () => {
+      // deleteLastBtn.addEventListener("click", deleteLastPhoto); // HAPUS
+      resetBtn.addEventListener("click", resetApp);
+
+      printBtn.addEventListener("click", () => {
+        if (photoTaken < totalPhotos) {
+          if (!confirm("Foto belum penuh. Tetap cetak?")) return;
+        }
         renderPhotostrip((canvas) => {
           const win = window.open();
-          win.document.write(`
-			<img src="${canvas.toDataURL()}" onload="window.print();window.close();" />`);
+          win.document.write(
+            `<img src="${canvas.toDataURL()}" onload="window.print();window.close();" />`
+          );
           win.document.close();
         });
       });
-      // --- MODIFIKASI DIMULAI ---
-      document.getElementById("downloadBtn").addEventListener("click", () => {
+
+      downloadBtn.addEventListener("click", () => {
+        if (photoTaken === 0) {
+          alert("Ambil foto terlebih dahulu!");
+          return;
+        }
+        if (photoTaken < totalPhotos) {
+          if (!confirm("Foto belum penuh. Tetap unduh?")) return;
+        }
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = "Memproses...";
         renderPhotostrip(async (canvas) => {
-          // Membuat nama file yang unik menggunakan timestamp
           const filename = `photostrip-${Date.now()}.png`;
           const dataUrl = canvas.toDataURL("image/png");
+
+          // 1. Unduh lokal
           const link = document.createElement("a");
-          link.download = filename; // Menggunakan nama file unik untuk unduhan lokal
+          link.download = filename;
           link.href = dataUrl;
           link.click();
-          // Mengirim dataUrl beserta nama file unik ke fungsi upload
+
+          // 2. Unggah dan tampilkan QR
           const uploadedUrl = await uploadToImgbb(dataUrl, filename);
           if (uploadedUrl) showQRCode(uploadedUrl);
+
+          downloadBtn.disabled = false;
+          downloadBtn.textContent = "Unduh Hasil Foto";
         });
       });
-      // --- MODIFIKASI SELESAI ---
-      showVideosBtn.addEventListener("click", () => {
-        showVideoResult();
-      });
+
+      showVideosBtn.addEventListener("click", showVideoResult);
+
       backToPhotoBtn.addEventListener("click", () => {
-        videoResultContainer.style.display = 'none';
-        previewContainer.style.display = 'flex';
+        videoResultContainer.style.display = "none";
         videoPlayer.pause();
       });
 
-      function initializeApp() {
-        setFrameSize(4);
-        loadCameras();
+      // --- TAMBAHAN: Event Listener untuk Modal Preview ---
+      const previewTitle = document.querySelector("#resultsPreviewContainer h2");
+      const framePreviewModal = document.getElementById("framePreviewModal");
+      const closeFramePreviewBtn = document.getElementById(
+        "closeFramePreviewBtn"
+      );
+
+      function showFramePreview() {
+        // Jangan tampilkan jika tidak ada foto DAN tidak ada frame kustom
+        if (photoTaken === 0 && useDefaultFrame && !frameOverlay.src) {
+          alert("Ambil foto atau upload frame dulu untuk melihat preview.");
+          return;
+        }
+
+        renderPhotostrip((highResCanvas) => {
+          const previewCanvas = document.getElementById("framePreviewCanvas");
+          const ctx = previewCanvas.getContext("2d");
+
+          // Tentukan ukuran preview, misal lebar max 400px atau 80% viewport
+          const maxWidth = Math.min(400, window.innerWidth * 0.8);
+          const aspect = highResCanvas.height / highResCanvas.width;
+
+          previewCanvas.width = maxWidth;
+          previewCanvas.height = maxWidth * aspect;
+
+          // Gambar canvas high-res ke canvas preview (scaling down)
+          ctx.drawImage(
+            highResCanvas,
+            0,
+            0,
+            previewCanvas.width,
+            previewCanvas.height
+          );
+
+          framePreviewModal.style.display = "flex";
+        });
       }
+
+      previewTitle.addEventListener("click", showFramePreview);
+
+      closeFramePreviewBtn.addEventListener("click", () => {
+        framePreviewModal.style.display = "none";
+      });
+
+      // Tutup modal jika klik di luar area konten
+      framePreviewModal.addEventListener("click", (e) => {
+        if (e.target === framePreviewModal) {
+          framePreviewModal.style.display = "none";
+        }
+      });
+
+      // --- Inisialisasi Aplikasi ---
+      function initializeApp() {
+        document.getElementById("btnSize4").click(); // Set default ke 4 foto
+      }
+
       initializeApp();
     </script>
   </body>
 </html>
-
